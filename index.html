@@ -74,7 +74,7 @@
   let collectedData = {
     witness: { name: "", father: "", address: "", aadhaar: "" },
     customer: { name: "", father: "", address: "", aadhaar: "" },
-    mobile: { imei1: "", imei2: "", company: "", product: "", model: "" }
+    mobile: { imei1: "", imei2: "", mobileDetails: "" }
   };
 
   async function startScanningFor(target) {
@@ -127,7 +127,7 @@
       collectedData.mobile.imei1 = cleanedImei;
       markButtonDone(3, "✓ IMEI 1 Scanned");
       
-      document.getElementById("status").innerText = "⏳ ਮੋਬਾਈਲ ਦੀ ਜਾਣਕਾਰੀ (Company/Model) ਫੈਚ ਕੀਤੀ ਜਾ ਰਹੀ ਹੈ...";
+      document.getElementById("status").innerText = "⏳ ਮੋਬਾਈਲ ਦੀ ਜਾਣਕਾਰੀ ਫੈਚ ਕੀਤੀ ਜਾ ਰਹੀ ਹੈ...";
       await fetchMobileDetails(cleanedImei);
     } 
     else if (target === 4) {
@@ -138,7 +138,7 @@
     document.getElementById("status").innerText = "✓ ਸਕੈਨ ਸਫ਼ਲ ਰਿਹਾ!";
   }
 
-  // IMEI Lookup & Auto-Classification Logic
+  // Combined IMEI Lookup (Company + Product + Model with RAM & Storage)
   async function fetchMobileDetails(imei) {
     try {
       let response = await fetch(`https://imei-db.com/api/check?imei=${imei}`);
@@ -146,22 +146,17 @@
       
       if (data && data.brand) {
         let brandName = data.brand.trim();
-        collectedData.mobile.company = brandName;
+        let productName = (brandName.toLowerCase() === "apple") ? "iPhone" : "Mobile";
         
-        // 1. Product Logic (Apple -> iPhone, Else -> Mobile)
-        if (brandName.toLowerCase() === "apple") {
-          collectedData.mobile.product = "iPhone";
-        } else {
-          collectedData.mobile.product = "Mobile";
-        }
-
-        // 2. Model with RAM & Storage Logic
         let modelStr = data.model || "";
         let ramStorage = "";
         if (data.ram || data.storage) {
           ramStorage = ` (${data.ram || ''} ${data.storage || ''})`.trim();
         }
-        collectedData.mobile.model = (modelStr + ramStorage).trim();
+        let fullModel = (modelStr + ramStorage).trim();
+
+        // Combine: Company + Product + Model
+        collectedData.mobile.mobileDetails = `${brandName} ${productName} ${fullModel}`.trim();
       }
     } catch (e) {
       console.log("API Fetch error");
@@ -219,14 +214,12 @@
     if (collectedData.customer.name) defaults["Customer Name"] = collectedData.customer.name;
     if (collectedData.customer.father) defaults["Father Name_25"] = collectedData.customer.father;
     if (collectedData.customer.address) defaults["Address_Customer"] = collectedData.customer.address;
-    if (collectedData.customer.aadhaar) defaults["Aadhaar_Customer"] = collectedData.customer.aadhaar;
+    if (collectedData.customer.aadhaar) defaults["Customer Adhaar Number"] = collectedData.customer.aadhaar; // Updated Column Name
 
     // 3. Mobile Details
     if (collectedData.mobile.imei1) defaults["IMEINumberone"] = collectedData.mobile.imei1;
     if (collectedData.mobile.imei2) defaults["IMEINumbertwo"] = collectedData.mobile.imei2;
-    if (collectedData.mobile.company) defaults["Company"] = collectedData.mobile.company;
-    if (collectedData.mobile.product) defaults["Product"] = collectedData.mobile.product;
-    if (collectedData.mobile.model) defaults["Model"] = collectedData.mobile.model;
+    if (collectedData.mobile.mobileDetails) defaults["MobileDetails"] = collectedData.mobile.mobileDetails; // Combined Field
 
     let encodedDefaults = encodeURIComponent(JSON.stringify(defaults));
     let encodedFormName = encodeURIComponent(APPSHEET_FORM_NAME);
