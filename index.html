@@ -65,7 +65,7 @@
 </div>
 
 <script>
-  const APPSHEET_APP_ID = "eec2a13f-2ec9-4dbd-8c2a-743bd9911843";
+  const APPSHEET_APP_ID = "MakeaLoan-954896914";
   const APPSHEET_FORM_NAME = "New Loan"; 
 
   let html5QrCode = null;
@@ -74,7 +74,7 @@
   let collectedData = {
     witness: { name: "", father: "", address: "", aadhaar: "" },
     customer: { name: "", father: "", address: "", aadhaar: "" },
-    mobile: { imei1: "", imei2: "" }
+    mobile: { imei1: "", imei2: "", company: "", product: "", model: "" }
   };
 
   async function startScanningFor(target) {
@@ -82,13 +82,12 @@
     const statusDiv = document.getElementById("status");
     const readerDiv = document.getElementById("reader");
 
-    // Stop existing scanner if running
     if (html5QrCode && html5QrCode.isScanning) {
       await html5QrCode.stop();
     }
 
     readerDiv.style.display = "block";
-    statusDiv.innerText = `⏳ ਕੈਮਰਾ ਖੁੱਲ੍ਹ ਰਿਹਾ ਹੈ (Target: ${getTargetName(target)})...`;
+    statusDiv.innerText = `⏳ ਕੈਮਰਾ ਖੁੱਲ੍ਹ ਰਿਹਾ ਹੈ...`;
 
     if (!html5QrCode) {
       html5QrCode = new Html5Qrcode("reader", {
@@ -99,21 +98,16 @@
     const config = { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 };
 
     html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess)
-      .then(() => {
-        statusDiv.innerText = `${getTargetName(target)} ਦਾ QR / Barcode ਸਾਹਮਣੇ ਕਰੋ...`;
-      })
       .catch(err => {
         html5QrCode.start({ facingMode: "user" }, config, onScanSuccess);
       });
   }
 
-  function onScanSuccess(decodedText) {
+  async function onScanSuccess(decodedText) {
     if (!activeTarget) return;
-
     let target = activeTarget;
-    activeTarget = null; // Prevent double trigger
+    activeTarget = null;
 
-    // Stop Camera after scan
     html5QrCode.stop().then(() => {
       document.getElementById("reader").style.display = "none";
     }).catch(() => {
@@ -129,15 +123,49 @@
       markButtonDone(2, "✓ Customer Scanned");
     } 
     else if (target === 3) {
-      collectedData.mobile.imei1 = decodedText.replace(/\D/g, '').slice(0, 15);
+      let cleanedImei = decodedText.replace(/\D/g, '').slice(0, 15);
+      collectedData.mobile.imei1 = cleanedImei;
       markButtonDone(3, "✓ IMEI 1 Scanned");
+      
+      document.getElementById("status").innerText = "⏳ ਮੋਬਾਈਲ ਦੀ ਜਾਣਕਾਰੀ (Company/Model) ਫੈਚ ਕੀਤੀ ਜਾ ਰਹੀ ਹੈ...";
+      await fetchMobileDetails(cleanedImei);
     } 
     else if (target === 4) {
       collectedData.mobile.imei2 = decodedText.replace(/\D/g, '').slice(0, 15);
       markButtonDone(4, "✓ IMEI 2 Scanned");
     }
 
-    document.getElementById("status").innerText = "✓ ਸਕੈਨ ਸਫ਼ਲ ਰਿਹਾ! ਅਗਲਾ ਬਟਨ ਚੁਣੋ ਜਾਂ AppSheet ਵਿੱਚ ਭੇਜੋ।";
+    document.getElementById("status").innerText = "✓ ਸਕੈਨ ਸਫ਼ਲ ਰਿਹਾ!";
+  }
+
+  // IMEI Lookup & Auto-Classification Logic
+  async function fetchMobileDetails(imei) {
+    try {
+      let response = await fetch(`https://imei-db.com/api/check?imei=${imei}`);
+      let data = await response.json();
+      
+      if (data && data.brand) {
+        let brandName = data.brand.trim();
+        collectedData.mobile.company = brandName;
+        
+        // 1. Product Logic (Apple -> iPhone, Else -> Mobile)
+        if (brandName.toLowerCase() === "apple") {
+          collectedData.mobile.product = "iPhone";
+        } else {
+          collectedData.mobile.product = "Mobile";
+        }
+
+        // 2. Model with RAM & Storage Logic
+        let modelStr = data.model || "";
+        let ramStorage = "";
+        if (data.ram || data.storage) {
+          ramStorage = ` (${data.ram || ''} ${data.storage || ''})`.trim();
+        }
+        collectedData.mobile.model = (modelStr + ramStorage).trim();
+      }
+    } catch (e) {
+      console.log("API Fetch error");
+    }
   }
 
   function markButtonDone(target, text) {
@@ -145,14 +173,6 @@
     const badge = document.getElementById(`badge-${target}`);
     btn.classList.add("done");
     badge.innerText = text;
-  }
-
-  function getTargetName(target) {
-    if (target === 1) return "ਗਵਾਹ ਆਧਾਰ";
-    if (target === 2) return "ਕਸਟਮਰ ਆਧਾਰ";
-    if (target === 3) return "IMEI 1";
-    if (target === 4) return "IMEI 2";
-    return "";
   }
 
   function parseAadhaar(qrData) {
@@ -186,30 +206,32 @@
     return data;
   }
 
-function redirectToAppSheet() {
+  function redirectToAppSheet() {
     let defaults = {};
 
-    // 1. Witness (ਗਵਾਹ) Data
+    // 1. Witness Data
     if (collectedData.witness.name) defaults["Name"] = collectedData.witness.name;
-    if (collectedData.witness.father) defaults["Father Name"] = collectedData.witness.father; // ਗਵਾਹ ਦੇ ਪਿਤਾ ਦਾ ਕਾਲਮ
+    if (collectedData.witness.father) defaults["Father Name"] = collectedData.witness.father;
     if (collectedData.witness.address) defaults["Address"] = collectedData.witness.address;
     if (collectedData.witness.aadhaar) defaults["Adhaar"] = collectedData.witness.aadhaar;
 
-    // 2. Customer (ਕਸਟਮਰ) Data
+    // 2. Customer Data
     if (collectedData.customer.name) defaults["Customer Name"] = collectedData.customer.name;
-    if (collectedData.customer.father) defaults["Father Name_25"] = collectedData.customer.father; // AppSheet ਦੁਆਰਾ ਬਣਾਇਆ ਅਸਲੀ ਕਾਲਮ ਨਾਮ
+    if (collectedData.customer.father) defaults["Father Name_25"] = collectedData.customer.father;
     if (collectedData.customer.address) defaults["Address_Customer"] = collectedData.customer.address;
     if (collectedData.customer.aadhaar) defaults["Aadhaar_Customer"] = collectedData.customer.aadhaar;
 
-    // 3. Mobile IMEI Data
+    // 3. Mobile Details
     if (collectedData.mobile.imei1) defaults["IMEINumberone"] = collectedData.mobile.imei1;
     if (collectedData.mobile.imei2) defaults["IMEINumbertwo"] = collectedData.mobile.imei2;
+    if (collectedData.mobile.company) defaults["Company"] = collectedData.mobile.company;
+    if (collectedData.mobile.product) defaults["Product"] = collectedData.mobile.product;
+    if (collectedData.mobile.model) defaults["Model"] = collectedData.mobile.model;
 
     let encodedDefaults = encodeURIComponent(JSON.stringify(defaults));
-    let encodedFormName = encodeURIComponent("New Loan");
-
+    let encodedFormName = encodeURIComponent(APPSHEET_FORM_NAME);
     let deepLink = `https://www.appsheet.com/start/${APPSHEET_APP_ID}#control=${encodedFormName}&Defaults=${encodedDefaults}`;
-
+    
     window.location.href = deepLink;
   }
 </script>
