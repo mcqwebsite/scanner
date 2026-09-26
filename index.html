@@ -3,54 +3,73 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Aadhaar & IMEI Scanner</title>
+  <title>Aadhaar & IMEI 4-Button Scanner</title>
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
   <style>
     body { font-family: Arial, sans-serif; text-align: center; background: #f4f6f9; padding: 15px; margin: 0; }
     .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); max-width: 450px; margin: auto; }
-    h2 { color: #2c3e50; font-size: 18px; margin-bottom: 10px; }
-    .status-box { background: #eef2f7; padding: 12px; border-radius: 8px; margin-bottom: 15px; font-weight: bold; color: #34495e; min-height: 45px; display: flex; align-items: center; justify-content: center; }
-    #reader { width: 100%; border-radius: 8px; overflow: hidden; margin: 10px auto; background: #000; }
-    .btn-reset { background: #e74c3c; color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; margin-top: 15px; font-weight: bold; }
+    h2 { color: #2c3e50; font-size: 18px; margin-bottom: 15px; }
     
-    /* Pop-up Modal Box Styling */
-    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; align-items: center; justify-content: center; }
-    .modal-box { background: white; padding: 25px; border-radius: 12px; max-width: 320px; width: 85%; box-shadow: 0 5px 15px rgba(0,0,0,0.3); text-align: center; animation: popIn 0.3s ease; }
-    @keyframes popIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-    .modal-title { color: #27ae60; font-size: 18px; font-weight: bold; margin-bottom: 10px; }
-    .modal-msg { color: #2c3e50; font-size: 15px; margin-bottom: 20px; line-height: 1.4; }
-    .btn-ok { background: #27ae60; color: white; border: none; padding: 12px 30px; font-size: 16px; font-weight: bold; border-radius: 8px; cursor: pointer; width: 100%; }
-    .btn-ok:active { background: #2196f3; }
+    .status-box { background: #eef2f7; padding: 12px; border-radius: 8px; margin-bottom: 15px; font-weight: bold; color: #34495e; min-height: 40px; display: flex; align-items: center; justify-content: center; }
+    
+    /* Grid Buttons */
+    .btn-scan { background: #2980b9; color: white; border: none; padding: 14px; font-size: 15px; font-weight: bold; border-radius: 8px; width: 100%; margin-bottom: 10px; cursor: pointer; text-align: left; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box; }
+    .btn-scan:active { background: #1c5980; }
+    .btn-scan.done { background: #27ae60; }
+    
+    #reader { width: 100%; border-radius: 8px; overflow: hidden; margin: 15px auto; background: #000; display: none; }
+    
+    .btn-submit { background: #8e44ad; color: white; border: none; padding: 16px; font-size: 16px; font-weight: bold; border-radius: 8px; width: 100%; margin-top: 15px; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    .btn-submit:active { background: #6c3483; }
+    
+    .btn-reset { background: #e74c3c; color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; margin-top: 15px; font-weight: bold; font-size: 13px; }
+    
+    .badge { background: rgba(255,255,255,0.2); padding: 4px 8px; border-radius: 4px; font-size: 12px; }
   </style>
 </head>
 <body>
 
 <div class="card">
-  <h2 id="step-title">1. Scan Witness (ਗਵਾਹ) Aadhaar</h2>
-  <div class="status-box" id="status">ਕੈਮਰੇ ਦੇ ਸਾਹਮਣੇ QR ਕੋਡ ਲਿਆਓ...</div>
+  <h2>📷 Aadhaar & IMEI Scanner</h2>
   
+  <div class="status-box" id="status">ਜਿਸ ਚੀਜ਼ ਨੂੰ ਸਕੈਨ ਕਰਨਾ ਹੈ, ਉਸ ਬਟਨ 'ਤੇ ਟੈਪ ਕਰੋ</div>
+
+  <!-- Scanner Area -->
   <div id="reader"></div>
+
+  <!-- 4 Independent Buttons -->
+  <button class="btn-scan" id="btn-1" onclick="startScanningFor(1)">
+    <span>1. 👤 ਗਵਾਹ (Witness) ਆਧਾਰ</span>
+    <span class="badge" id="badge-1">Pending</span>
+  </button>
+
+  <button class="btn-scan" id="btn-2" onclick="startScanningFor(2)">
+    <span>2. 👤 ਕਸਟਮਰ (Customer) ਆਧਾਰ</span>
+    <span class="badge" id="badge-2">Pending</span>
+  </button>
+
+  <button class="btn-scan" id="btn-3" onclick="startScanningFor(3)">
+    <span>3. 📱 IMEI 1 ਬਾਰਕੋਡ</span>
+    <span class="badge" id="badge-3">Pending</span>
+  </button>
+
+  <button class="btn-scan" id="btn-4" onclick="startScanningFor(4)">
+    <span>4. 📱 IMEI 2 ਬਾਰਕੋਡ</span>
+    <span class="badge" id="badge-4">Pending</span>
+  </button>
+
+  <!-- Final Submit Button -->
+  <button class="btn-submit" onclick="redirectToAppSheet()">🚀 AppSheet ਵਿੱਚ ਡਾਟਾ ਭੇਜੋ</button>
   
   <button class="btn-reset" onclick="location.reload()">ਮੁੜ ਸ਼ੁਰੂ ਕਰੋ (Reset)</button>
-</div>
-
-<!-- Custom Pop-up Modal -->
-<div class="modal-overlay" id="popup-modal">
-  <div class="modal-box">
-    <div class="modal-title" id="modal-title">✓ ਸਕੈਨ ਹੋ ਗਿਆ!</div>
-    <div class="modal-msg" id="modal-msg">ਅਗਲਾ ਸਕੈਨ ਕਰਨ ਲਈ OK ਦਬਾਓ।</div>
-    <button class="btn-ok" onclick="handleOkClick()">OK (ਅਗਲਾ ਸਕੈਨ ਕਰੋ)</button>
-  </div>
 </div>
 
 <script>
   const APPSHEET_APP_ID = "MakeaLoan-954896914";
   const APPSHEET_FORM_NAME = "New Loan"; 
 
-  let currentStep = 1; 
-  let html5QrCode;
-  let isProcessing = false;
-  let onOkCallback = null;
+  let html5QrCode = null;
+  let activeTarget = null;
 
   let collectedData = {
     witness: { name: "", father: "", address: "", aadhaar: "" },
@@ -58,106 +77,82 @@
     mobile: { imei1: "", imei2: "" }
   };
 
-  function startScanner() {
-    html5QrCode = new Html5Qrcode("reader", {
-      experimentalFeatures: { useBarCodeDetectorIfSupported: true }
-    });
+  async function startScanningFor(target) {
+    activeTarget = target;
+    const statusDiv = document.getElementById("status");
+    const readerDiv = document.getElementById("reader");
 
-    const config = { 
-      fps: 10, 
-      qrbox: { width: 250, height: 250 },
-      aspectRatio: 1.0
-    };
+    // Stop existing scanner if running
+    if (html5QrCode && html5QrCode.isScanning) {
+      await html5QrCode.stop();
+    }
+
+    readerDiv.style.display = "block";
+    statusDiv.innerText = `⏳ ਕੈਮਰਾ ਖੁੱਲ੍ਹ ਰਿਹਾ ਹੈ (Target: ${getTargetName(target)})...`;
+
+    if (!html5QrCode) {
+      html5QrCode = new Html5Qrcode("reader", {
+        experimentalFeatures: { useBarCodeDetectorIfSupported: true }
+      });
+    }
+
+    const config = { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 };
 
     html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess)
+      .then(() => {
+        statusDiv.innerText = `${getTargetName(target)} ਦਾ QR / Barcode ਸਾਹਮਣੇ ਕਰੋ...`;
+      })
       .catch(err => {
         html5QrCode.start({ facingMode: "user" }, config, onScanSuccess);
       });
   }
 
-  function showPopup(title, message, nextAction) {
-    document.getElementById("modal-title").innerText = title;
-    document.getElementById("modal-msg").innerText = message;
-    document.getElementById("popup-modal").style.display = "flex";
-    onOkCallback = nextAction;
-  }
-
-  function handleOkClick() {
-    document.getElementById("popup-modal").style.display = "none";
-    if (onOkCallback) {
-      onOkCallback();
-      onOkCallback = null;
-    }
-  }
-
   function onScanSuccess(decodedText) {
-    if (isProcessing) return;
-    isProcessing = true;
+    if (!activeTarget) return;
 
-    try {
-      if (currentStep === 1) {
-        // Step 1: Witness Aadhaar
-        collectedData.witness = parseAadhaar(decodedText);
-        try { html5QrCode.pause(true); } catch(e){}
+    let target = activeTarget;
+    activeTarget = null; // Prevent double trigger
 
-        showPopup(
-          "✓ ਗਵਾਹ (Witness) ਆਧਾਰ ਸਕੈਨ ਹੋ ਗਿਆ!",
-          "ਕਸਟਮਰ ਦਾ ਆਧਾਰ ਕਾਰਡ ਸਕੈਨ ਕਰਨ ਲਈ OK ਦਬਾਓ।",
-          function() {
-            currentStep = 2;
-            document.getElementById("step-title").innerText = "2. Scan Customer (ਕਸਟਮਰ) Aadhaar";
-            document.getElementById("status").innerText = "ਹੁਣ ਕਸਟਮਰ ਦਾ ਆਧਾਰ ਕਾਰਡ ਸਾਹਮਣੇ ਕਰੋ...";
-            isProcessing = false;
-            try { html5QrCode.resume(); } catch(e){}
-          }
-        );
-      } 
-      else if (currentStep === 2) {
-        // Step 2: Customer Aadhaar
-        collectedData.customer = parseAadhaar(decodedText);
-        try { html5QrCode.pause(true); } catch(e){}
+    // Stop Camera after scan
+    html5QrCode.stop().then(() => {
+      document.getElementById("reader").style.display = "none";
+    }).catch(() => {
+      document.getElementById("reader").style.display = "none";
+    });
 
-        showPopup(
-          "✓ ਕਸਟਮਰ (Customer) ਆਧਾਰ ਸਕੈਨ ਹੋ ਗਿਆ!",
-          "ਮੋਬਾਈਲ ਦਾ ਪਹਿਲਾ IMEI (IMEI 1) ਸਕੈਨ ਕਰਨ ਲਈ OK ਦਬਾਓ।",
-          function() {
-            currentStep = 3;
-            document.getElementById("step-title").innerText = "3. Scan Mobile IMEI 1";
-            document.getElementById("status").innerText = "ਮੋਬਾਈਲ ਦਾ ਪਹਿਲਾ IMEI ਬਾਰਕੋਡ ਸਾਹਮਣੇ ਕਰੋ...";
-            isProcessing = false;
-            try { html5QrCode.resume(); } catch(e){}
-          }
-        );
-      } 
-      else if (currentStep === 3) {
-        // Step 3: IMEI 1
-        collectedData.mobile.imei1 = decodedText.replace(/\D/g, '').slice(0, 15);
-        try { html5QrCode.pause(true); } catch(e){}
-
-        showPopup(
-          "✓ IMEI 1 ਸਕੈਨ ਹੋ ਗਿਆ!",
-          "ਦੂਜਾ IMEI (IMEI 2) ਸਕੈਨ ਕਰਨ ਲਈ OK ਦਬਾਓ।",
-          function() {
-            currentStep = 4;
-            document.getElementById("step-title").innerText = "4. Scan Mobile IMEI 2";
-            document.getElementById("status").innerText = "ਦੂਜਾ IMEI ਬਾਰਕੋਡ ਸਾਹਮਣੇ ਕਰੋ...";
-            isProcessing = false;
-            try { html5QrCode.resume(); } catch(e){}
-          }
-        );
-      }
-      else if (currentStep === 4) {
-        // Step 4: IMEI 2
-        collectedData.mobile.imei2 = decodedText.replace(/\D/g, '').slice(0, 15);
-        try { html5QrCode.pause(true); } catch(e){}
-
-        document.getElementById("status").innerText = "⏳ ਸਾਰਾ ਡਾਟਾ ਸਕੈਨ ਹੋ ਗਿਆ! AppSheet ਖੋਲ੍ਹਿਆ ਜਾ ਰਿਹਾ ਹੈ...";
-        redirectToAppSheet();
-      }
-    } catch (err) {
-      document.getElementById("status").innerText = "⚠️ ਸਕੈਨਿੰਗ ਵਿੱਚ ਸਮੱਸਿਆ ਆਈ, ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।";
-      isProcessing = false;
+    if (target === 1) {
+      collectedData.witness = parseAadhaar(decodedText);
+      markButtonDone(1, "✓ Witness Scanned");
+    } 
+    else if (target === 2) {
+      collectedData.customer = parseAadhaar(decodedText);
+      markButtonDone(2, "✓ Customer Scanned");
+    } 
+    else if (target === 3) {
+      collectedData.mobile.imei1 = decodedText.replace(/\D/g, '').slice(0, 15);
+      markButtonDone(3, "✓ IMEI 1 Scanned");
+    } 
+    else if (target === 4) {
+      collectedData.mobile.imei2 = decodedText.replace(/\D/g, '').slice(0, 15);
+      markButtonDone(4, "✓ IMEI 2 Scanned");
     }
+
+    document.getElementById("status").innerText = "✓ ਸਕੈਨ ਸਫ਼ਲ ਰਿਹਾ! ਅਗਲਾ ਬਟਨ ਚੁਣੋ ਜਾਂ AppSheet ਵਿੱਚ ਭੇਜੋ।";
+  }
+
+  function markButtonDone(target, text) {
+    const btn = document.getElementById(`btn-${target}`);
+    const badge = document.getElementById(`badge-${target}`);
+    btn.classList.add("done");
+    badge.innerText = text;
+  }
+
+  function getTargetName(target) {
+    if (target === 1) return "ਗਵਾਹ ਆਧਾਰ";
+    if (target === 2) return "ਕਸਟਮਰ ਆਧਾਰ";
+    if (target === 3) return "IMEI 1";
+    if (target === 4) return "IMEI 2";
+    return "";
   }
 
   function parseAadhaar(qrData) {
@@ -211,8 +206,6 @@
     
     window.location.href = deepLink;
   }
-
-  window.onload = startScanner;
 </script>
 
 </body>
