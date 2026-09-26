@@ -186,24 +186,30 @@
     return data;
   }
 
-  function redirectToAppSheet() {
-    let defaults = {
-      "Name": collectedData.witness.name,
-      "Father Name": collectedData.witness.father,
-      "Address": collectedData.witness.address,
-      "Adhaar": collectedData.witness.aadhaar,
-      "Customer Name": collectedData.customer.name,
-      "Father Name_Customer": collectedData.customer.father,
-      "Address_Customer": collectedData.customer.address,
-      "Aadhaar_Customer": collectedData.customer.aadhaar,
-      "IMEINumberone": collectedData.mobile.imei1,
-      "IMEINumbertwo": collectedData.mobile.imei2
-    };
+function redirectToAppSheet() {
+    let defaults = {};
+
+    // 1. Witness (ਗਵਾਹ) Data
+    if (collectedData.witness.name) defaults["Name"] = collectedData.witness.name;
+    if (collectedData.witness.father) defaults["Father Name"] = collectedData.witness.father; // ਗਵਾਹ ਦੇ ਪਿਤਾ ਦਾ ਕਾਲਮ
+    if (collectedData.witness.address) defaults["Address"] = collectedData.witness.address;
+    if (collectedData.witness.aadhaar) defaults["Adhaar"] = collectedData.witness.aadhaar;
+
+    // 2. Customer (ਕਸਟਮਰ) Data
+    if (collectedData.customer.name) defaults["Customer Name"] = collectedData.customer.name;
+    if (collectedData.customer.father) defaults["Father Name_25"] = collectedData.customer.father; // AppSheet ਦੁਆਰਾ ਬਣਾਇਆ ਅਸਲੀ ਕਾਲਮ ਨਾਮ
+    if (collectedData.customer.address) defaults["Address_Customer"] = collectedData.customer.address;
+    if (collectedData.customer.aadhaar) defaults["Aadhaar_Customer"] = collectedData.customer.aadhaar;
+
+    // 3. Mobile IMEI Data
+    if (collectedData.mobile.imei1) defaults["IMEINumberone"] = collectedData.mobile.imei1;
+    if (collectedData.mobile.imei2) defaults["IMEINumbertwo"] = collectedData.mobile.imei2;
 
     let encodedDefaults = encodeURIComponent(JSON.stringify(defaults));
-    let encodedFormName = encodeURIComponent(APPSHEET_FORM_NAME);
+    let encodedFormName = encodeURIComponent("New Loan");
+
     let deepLink = `https://www.appsheet.com/start/${APPSHEET_APP_ID}#control=${encodedFormName}&Defaults=${encodedDefaults}`;
-    
+
     window.location.href = deepLink;
   }
 </script>
