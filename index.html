@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aadhaar & IMEI Scanner</title>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; background: #f4f6f9; padding: 15px; margin: 0; }
+    .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); max-width: 450px; margin: auto; }
+    h2 { color: #2c3e50; font-size: 18px; margin-bottom: 10px; }
+    .status-box { background: #eef2f7; padding: 12px; border-radius: 8px; margin-bottom: 15px; font-weight: bold; color: #34495e; min-height: 40px; display: flex; align-items: center; justify-content: center; }
+    #reader { width: 100%; border-radius: 8px; overflow: hidden; margin: 10px auto; }
+    .btn-reset { background: #e74c3c; color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; margin-top: 15px; font-weight: bold; }
+    .success-text { color: #27ae60; }
+    .working-text { color: #d35400; }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <h2 id="step-title">1. Scan Witness (ਗਵਾਹ) Aadhaar</h2>
+  <div class="status-box" id="status">ਕੈਮਰਾ ਚਾਲੂ ਹੋ ਰਿਹਾ ਹੈ, QR ਸਾਹਮਣੇ ਕਰੋ...</div>
+  <div id="reader"></div>
+  <button class="btn-reset" onclick="location.reload()">ਮੁੜ ਸ਼ੁਰੂ ਕਰੋ (Reset)</button>
+</div>
+
+<script>
+  const APPSHEET_APP_ID = "MakeaLoan-954896914";
+  const APPSHEET_FORM_NAME = "New Loan"; 
+
+  let currentStep = 1; 
+  let html5QrCode;
+  let isProcessing = false;
+
+  let collectedData = {
+    witness: { name: "", father: "", address: "", aadhaar: "" },
+    customer: { name: "", father: "", address: "", aadhaar: "" },
+    mobile: { imei1: "" }
+  };
+
+  function startScanner() {
+    html5QrCode = new Html5Qrcode("reader");
+    const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+
+    html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess)
+      .catch(err => {
+        html5QrCode.start({ facingMode: "user" }, config, onScanSuccess);
+      });
+  }
+
+  function onScanSuccess(decodedText) {
+    if (isProcessing) return;
+
+    if (currentStep === 1) {
+      isProcessing = true;
+      collectedData.witness = parseAadhaar(decodedText);
+      
+      document.getElementById("step-title").innerText = "2. Scan Customer (ਕਸਟਮਰ) Aadhaar";
+      document.getElementById("status").innerHTML = "<span class='success-text'>✓ ਗਵਾਹ ਦਾ ਆਧਾਰ ਸਕੈਨ ਹੋ ਗਿਆ!<br>ਹੁਣ ਕਸਟਮਰ ਦਾ ਆਧਾਰ ਸਕੈਨ ਕਰੋ...</span>";
+      
+      setTimeout(() => { currentStep = 2; isProcessing = false; }, 2000);
+    } 
+    else if (currentStep === 2) {
+      isProcessing = true;
+      collectedData.customer = parseAadhaar(decodedText);
+      
+      document.getElementById("step-title").innerText = "3. Scan Mobile IMEI Barcode";
+      document.getElementById("status").innerHTML = "<span class='success-text'>✓ ਕਸਟਮਰ ਦਾ ਆਧਾਰ ਸਕੈਨ ਹੋ ਗਿਆ!<br>ਹੁਣ IMEI ਬਾਰਕੋਡ ਸਕੈਨ ਕਰੋ...</span>";
+      
+      setTimeout(() => { currentStep = 3; isProcessing = false; }, 2000);
+    } 
+    else if (currentStep === 3) {
+      isProcessing = true;
+      document.getElementById("status").innerHTML = "<span class='working-text'>⏳ IMEI ਸਕੈਨ ਹੋ ਗਿਆ! AppSheet ਖੋਲ੍ਹਿਆ ਜਾ ਰਿਹਾ ਹੈ...</span>";
+      
+      collectedData.mobile.imei1 = decodedText.replace(/\D/g, '').slice(0, 15);
+      
+      html5QrCode.stop().then(() => {
+        redirectToAppSheet();
+      }).catch(() => {
+        redirectToAppSheet();
+      });
+    }
+  }
+
+  function parseAadhaar(qrData) {
+    let data = { name: "", father: "", address: "", aadhaar: "" };
+    if (qrData.includes("<PrintLetterBarcodeData")) {
+      let parser = new DOMParser();
+      let xmlDoc = parser.parseFromString(qrData, "text/xml");
+      let node = xmlDoc.getElementsByTagName("PrintLetterBarcodeData")[0];
+
+      data.name = node.getAttribute("name") || "";
+      data.father = node.getAttribute("co") || node.getAttribute("gname") || "";
+      data.aadhaar = node.getAttribute("uid") || "";
+      
+      let house = node.getAttribute("house") || "";
+      let loc = node.getAttribute("loc") || "";
+      let vtc = node.getAttribute("vtc") || "";
+      let dist = node.getAttribute("dist") || "";
+      let state = node.getAttribute("state") || "";
+      let pc = node.getAttribute("pc") || "";
+
+      data.address = [house, loc, vtc, dist, state, pc].filter(Boolean).join(", ");
+    } else {
+      data.aadhaar = qrData.replace(/\D/g, '').slice(-12);
+    }
+    return data;
+  }
+
+  function redirectToAppSheet() {
+    let defaults = {
+      "Name": collectedData.witness.name,
+      "Father Name": collectedData.witness.father,
+      "Address": collectedData.witness.address,
+      "Adhaar": collectedData.witness.aadhaar,
+      "Customer Name": collectedData.customer.name,
+      "Father Name_Customer": collectedData.customer.father,
+      "Address_Customer": collectedData.customer.address,
+      "Aadhaar_Customer": collectedData.customer.aadhaar,
+      "IMEINumberone": collectedData.mobile.imei1
+    };
+
+    let encodedDefaults = encodeURIComponent(JSON.stringify(defaults));
+    let encodedFormName = encodeURIComponent(APPSHEET_FORM_NAME);
+    let deepLink = `https://www.appsheet.com/start/${APPSHEET_APP_ID}#control=${encodedFormName}&Defaults=${encodedDefaults}`;
+    
+    window.location.href = deepLink;
+  }
+
+  window.onload = startScanner;
+</script>
+
+</body>
+</html>
